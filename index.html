@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>lastra</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="prefetch" href="https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js" as="script">
+<link rel="prefetch" href="https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.sync.js" as="script">
+<link rel="prefetch" href="https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.wasm.wasm" as="fetch" crossorigin>
+<link rel="prefetch" href="https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.28/dist/index.mjs" as="script" crossorigin>
+<link rel="prefetch" href="browser.html"><link rel="prefetch" href="script.js" as="script"><link rel="prefetch" href="style.css" as="style">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#d98fb8;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{overflow:hidden;display:grid;place-items:center;background:var(--bg)}
+#wp,#wp>*{position:fixed;inset:0;width:100%;height:100%;object-fit:cover}
+#t{position:relative}
+main{position:relative;display:flex;flex-direction:column;align-items:center}
+#sf{display:flex;align-items:center;gap:12px;width:min(620px,88vw);height:56px;margin-top:-8px;padding:0 9px 0 20px;box-sizing:border-box;border-radius:999px;background:rgba(255,236,246,.26);border:1px solid rgba(255,255,255,.6);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 12px 40px rgba(90,20,70,.3);transition:border-color .2s}
+#sf:focus-within{border-color:#fff;background:rgba(255,240,248,.38)}
+#sf svg{flex:none;width:18px;height:18px;fill:none;stroke:#6b2a5a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#si{flex:1;min-width:0;border:0;outline:0;background:none;color:#3a1033;font:500 16px/1 'Outfit',system-ui,sans-serif}
+#si::placeholder{color:#7d4b72}
+#sf button{flex:none;width:40px;height:40px;border:0;border-radius:50%;background:#ee6aa7;cursor:pointer;display:grid;place-items:center}
+#sf button svg{width:17px;height:17px;stroke:#fff}
+</style>
+</head>
+<body>
+<div id="wp"></div>
+<main>
+<canvas id="t" role="img" aria-label="lastra"></canvas>
+<form id="sf" autocomplete="off"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="si" type="text" placeholder="Search the web or enter a URL" aria-label="Search" spellcheck="false" autocapitalize="off" enterkeyhint="go"><button aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>
+</main>
+<input id="pick" type="file" accept="video/*,image/*" hidden>
+<script>
+const wp=document.getElementById('wp'),T=document.getElementById('t'),c=T.getContext('2d'),pick=document.getElementById('pick');
+const d=Math.min(devicePixelRatio||1,2);let blob=null,cw,ch,fx,G,L,E,D,P,PY;
+
+/* wallpaper: embedded video by default; a dropped, picked or pasted one replaces it and is remembered */
+const idb=(m,...a)=>new Promise((ok,no)=>{const r=indexedDB.open('lastra',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onerror=no;
+  r.onsuccess=()=>{const q=r.result.transaction('k',m==='get'?'readonly':'readwrite').objectStore('k')[m](...a);q.onsuccess=()=>ok(q.result);q.onerror=no}});
+const unlink=()=>{try{localStorage.removeItem('lw')}catch{}};
+function show(src,video,fail){wp.replaceChildren();const e=document.createElement(video?'video':'img');
+  if(video)Object.assign(e,{muted:true,loop:true,autoplay:true,playsInline:true});
+  e.onerror=fail;e.src=src;wp.append(e);if(video)e.play().catch(()=>{})}
+function useFile(f,keep=true){if(blob)URL.revokeObjectURL(blob);const v=f.type.startsWith('video');blob=URL.createObjectURL(f);
+  show(blob,v,()=>{const r=new FileReader();r.onload=()=>show(r.result,v,()=>{});r.readAsDataURL(f)});
+  if(keep){unlink();idb('put',f,'wp').catch(()=>{})}}
+function useUrl(u){const v=/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(u);
+  show(u,v,()=>{reset();unlink()});
+  try{localStorage.setItem('lw',JSON.stringify([u,v]));idb('delete','wp').catch(()=>{})}catch{}}
+function reset(){fetch('wallpaper.mp4').then(r=>r.ok?r.blob():Promise.reject()).then(b=>useFile(new Blob([b],{type:'video/mp4'}),false)).catch(()=>{})}
+function wipe(){reset();unlink();idb('delete','wp').catch(()=>{})}
+const media=l=>[...l].find(f=>/^(video|image)\//.test(f.type));
+
+/* the wordmark: chrome gradient + the wallpaper reflected in it, cut to the letters */
+const mk=(h=ch)=>{const k=document.createElement('canvas');k.width=cw*d;k.height=h*d;const x=k.getContext('2d');x.scale(d,d);return x};
+function build(){
+  const fs=Math.min(Math.max(72,innerWidth*.15),190),ls=-.045*fs,p=Math.round(fs*.22),word=[...'lastra'];
+  const font=`700 ${fs}px Outfit,Poppins,system-ui,sans-serif`,m=document.createElement('canvas').getContext('2d');m.font=font;
+  let w=0;const adv=word.map(s=>{const a=m.measureText(s).width+ls;w+=a;return a});
+  const asc=m.measureText('l').actualBoundingBoxAscent,r=fs*.085,gap=fs*.06,end=w-ls;
+  cw=Math.ceil(end+gap+2*r+2*p);ch=Math.ceil(asc+2*p);
+  T.width=cw*d;T.height=ch*d;T.style.width=cw+'px';T.style.height=ch+'px';c.setTransform(d,0,0,d,0,0);
+  const b=p+asc,cx=p+end+gap+r,cy=b-r;
+  L=mk();L.font=font;L.fillStyle='#000';let x=p;word.forEach((s,i)=>{L.fillText(s,x,b);x+=adv[i]});L.beginPath();L.arc(cx,cy,r,0,6.283);L.fill();
+  P=asc*1.5;PY=p;G=mk(P);const g=G.createLinearGradient(0,0,0,P);
+  [[0,'#fff1f7'],[.18,'#ffe0ee'],[.42,'#f2b2d0'],[.5,'#9a4f7e'],[.54,'#e690b9'],[.78,'#ffd6e8'],[1,'#fff1f7']].forEach(([o,col])=>g.addColorStop(o,col));
+  G.fillStyle=g;G.fillRect(0,0,cw,P);
+  const bv=Math.max(1.5,fs*.012),edge=(dx,dy,col)=>{const e=mk();e.drawImage(L.canvas,0,0,cw,ch);e.globalCompositeOperation='destination-out';e.drawImage(L.canvas,dx,dy,cw,ch);e.globalCompositeOperation='source-in';e.fillStyle=col;e.fillRect(0,0,cw,ch);return e.canvas};
+  E=mk();E.drawImage(edge(bv,bv,'rgba(255,255,255,.45)'),0,0,cw,ch);E.drawImage(edge(-bv,-bv,'rgba(74,20,66,.35)'),0,0,cw,ch);
+  D=mk();D.shadowColor='rgba(58,10,48,.32)';D.shadowBlur=fs*.14*d;D.shadowOffsetY=fs*.03*d;D.drawImage(L.canvas,0,0,cw,ch);D.shadowColor='transparent';D.globalCompositeOperation='destination-out';D.drawImage(L.canvas,0,0,cw,ch);D.globalCompositeOperation='source-over';const ol=Math.max(1.2,fs*.008),Lp=mk(),Lo=mk();Lp.drawImage(L.canvas,0,0,cw,ch);Lp.globalCompositeOperation='source-in';Lp.fillStyle='#4a1442';Lp.fillRect(0,0,cw,ch);for(let a=0;a<6.283;a+=.785)Lo.drawImage(Lp.canvas,Math.cos(a)*ol,Math.sin(a)*ol,cw,ch);Lo.globalCompositeOperation='destination-out';Lo.drawImage(L.canvas,0,0,cw,ch);D.globalAlpha=.3;D.drawImage(Lo.canvas,0,0,cw,ch);D.globalAlpha=1;
+  
+  
+  
+  
+  
+  fx=mk();
+}
+function cover(e){const vw=e.videoWidth||e.naturalWidth,vh=e.videoHeight||e.naturalHeight;if(!vw)return;const s=Math.max(cw/vw,ch/vh);fx.drawImage(e,(cw-vw*s)/2,(ch-vh*s)/2,vw*s,vh*s)}
+function frame(){
+  if(fx){const e=wp.firstElementChild;
+    fx.globalCompositeOperation='source-over';fx.globalAlpha=1;fx.fillStyle='#fff';fx.fillRect(0,0,cw,ch);const y=PY+(performance.now()/12000%1)*P;fx.drawImage(G.canvas,0,y-P,cw,P);fx.drawImage(G.canvas,0,y,cw,P);
+    if(e&&(e.readyState>1||e.complete)){fx.globalCompositeOperation='overlay';cover(e);fx.globalCompositeOperation='screen';fx.globalAlpha=.4;cover(e);fx.globalAlpha=1}
+    fx.globalCompositeOperation='color';fx.globalAlpha=.38;fx.fillStyle='#ff86bd';fx.fillRect(0,0,cw,ch);fx.globalAlpha=1;fx.globalCompositeOperation='destination-in';fx.drawImage(L.canvas,0,0,cw,ch);
+    fx.globalCompositeOperation='source-over';fx.drawImage(E.canvas,0,0,cw,ch);
+    c.clearRect(0,0,cw,ch);c.drawImage(D.canvas,0,0,cw,ch);c.globalAlpha=.9;c.drawImage(fx.canvas,0,0,cw,ch);c.globalAlpha=1}
+  requestAnimationFrame(frame)}
+
+/* drop a file, paste a link, press W or double-click to change the wallpaper; Delete restores the default */
+addEventListener('resize',build);
+addEventListener('dragover',e=>{if(!e.target.closest('input'))e.preventDefault()});
+addEventListener('drop',e=>{if(e.target.closest('input'))return;e.preventDefault();const f=media(e.dataTransfer.files);if(f)return useFile(f);
+  const u=(e.dataTransfer.getData('text/uri-list')||e.dataTransfer.getData('text')).trim();if(/^https?:\/\/\S+$/.test(u))useUrl(u)});
+addEventListener('paste',e=>{if(e.target.closest('input,textarea'))return;const f=media(e.clipboardData.files);if(f)return useFile(f);
+  const t=e.clipboardData.getData('text').trim();if(/^https?:\/\/\S+$/.test(t))useUrl(t)});
+addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.target.closest('input,textarea'))return;
+  if(e.key==='w'||e.key==='W')pick.click();if(e.key==='Delete')wipe()});
+addEventListener('dblclick',e=>{if(!e.target.closest('form'))pick.click()});
+pick.onchange=()=>{if(pick.files[0])useFile(pick.files[0]);pick.value=''};
+
+document.getElementById('sf').addEventListener('submit',e=>{e.preventDefault();const v=document.getElementById('si').value.trim();if(v)location.href='browser.html#'+encodeURIComponent(v)});
+try{const w=new WebSocket(localStorage.getItem('proxServer')||'wss://lastra-wisp.onrender.com/wisp/');w.onopen=w.onerror=()=>w.close()}catch{}
+document.fonts.load('700 100px Outfit','lastra').catch(()=>{}).then(()=>{build();frame()});
+(async()=>{try{const s=JSON.parse(localStorage.getItem('lw')||'null');if(s)return useUrl(s[0])}catch{}
+  try{const f=await idb('get','wp');if(f)return useFile(f,false)}catch{}
+  reset()})();
+</script>
+</body>
+</html>
